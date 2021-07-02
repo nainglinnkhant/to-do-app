@@ -14,18 +14,37 @@
      <div class="container">
           <div class="col-md-6 offset-md-3">
                <form @submit.prevent="auth">
-                    <label for="email">Email</label>
-                    <input type="email" id="email" class="form-control mb-3" v-model.trim="email">
+                    <div>
+                         <label for="email">Email</label>
+                         <input
+                              type="email"
+                              id="email"
+                              class="form-control"
+                              v-model.trim="email"
+                              @blur="setEmailTouched"
+                         />
+                         <p v-if="isEmailInvalid">please enter a valid email.</p>
+                    </div>
+                    
 
-                    <label for="password">Password</label>
-                    <input type="password" id="password" class="form-control" v-model.trim="password">
-
-                    <p v-if="invalid">*please enter valid email and correct password</p>
+                    <div class="mt-3">
+                         <label for="password">Password</label>
+                         <input
+                              type="password"
+                              id="password"
+                              class="form-control"
+                              v-model.trim="password"
+                              @blur="setPasswordTouched"
+                         />
+                         <p v-if="isPasswordInvalid">please enter a valid password (at least 5 characters).</p>
+                    </div>
 
                     <div class="actions">
                          <button class="auth-button">{{ mode }}</button>
 
-                         <button type="button" class="switch-button" @click="switchMode">{{ switchButtonCaption }}</button>
+                         <button type="button" class="switch-button" @click="switchMode">
+                              {{ switchButtonCaption }}
+                         </button>
                     </div>
                </form>
           </div>
@@ -36,13 +55,23 @@
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStore } from 'vuex';
+import useInput from '../composables/use-input';
 
 export default {
      setup() {
-          const email = ref('');
-          const password = ref('');
+          const {
+               input: email,
+               isInputInvalid: isEmailInvalid,
+               setInputTouched: setEmailTouched 
+          } = useInput((input) => validateEmail(input));
+
+          const {
+               input: password,
+               isInputInvalid: isPasswordInvalid,
+               setInputTouched: setPasswordTouched 
+          } = useInput((input) => input.length > 5);
+
           const mode = ref('Login');
-          const invalid = ref(false);
           const errorMessage = ref('');
           const isLoading = ref(false);
 
@@ -67,44 +96,23 @@ export default {
                }
           }
 
+          function validateEmail(email) {
+               const re = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+               return re.test(String(email).toLowerCase());
+          }
+
           async function auth() {
-               if(email.value === '' || !email.value.includes('@') || password.value.length < 6) {
-                    invalid.value = true;
+               if(!validateEmail(email.value) || password.value.length <= 5) {
                     return;
                }
 
-               // let url = `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=AIzaSyAWunrscZqJeuNmzExLAIIzRra-OeyVMkg`;
-
-               // if(mode.value === 'Login') {
-               //      url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=AIzaSyAWunrscZqJeuNmzExLAIIzRra-OeyVMkg`;
-               // }
-
                isLoading.value = true;
                try {
-                    invalid.value = false;
                     await store.dispatch('auth', {
                          email: email.value,
                          password: password.value,
                          mode: mode.value  
                     });
-                    // const response = await fetch(url, {
-                    //      method: 'POST',
-                    //      body: JSON.stringify({
-                    //           email: email.value,
-                    //           password: password.value,
-                    //           returnSecureToken: true
-                    //      })
-                    // });
-
-                    // const responseData = await response.json();
-
-                    // if(!response.ok) {
-                    //      const error = new Error(responseData.error.message);
-                    //      throw error;
-                    // }
-
-                    // store.state.userId = responseData.localId;
-
                     router.replace('/');
                }
                catch(error) {
@@ -129,10 +137,13 @@ export default {
                switchMode,
                switchButtonCaption,
                auth,
-               invalid,
                errorMessage,
                confirmError,
-               isLoading
+               isLoading,
+               isEmailInvalid,
+               isPasswordInvalid,
+               setEmailTouched,
+               setPasswordTouched
           }
      }
 }
@@ -151,7 +162,7 @@ label {
 }
 p {
      color: red;
-     padding-top: 10px;
+     padding-top: 5px;
      font-size: 13px;
      margin-bottom: 0;
 }
