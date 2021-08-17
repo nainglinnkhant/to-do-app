@@ -37,6 +37,7 @@ import db from '../firebase.js';
 
 import TaskItem from '../components/TaskItem.vue';
 import AddTaskDialog from '../components/AddTaskDialog.vue';
+import useHttps from '../composables/use-https';
 
 export default {
      components: {
@@ -46,8 +47,6 @@ export default {
      setup() {
           const tasks = ref([]);
           const isDialogOpen = ref(false);
-          const errorMessage = ref('');
-          const isLoading = ref(false);
 
           const store = useStore();
           const router = useRouter();
@@ -60,26 +59,29 @@ export default {
                isDialogOpen.value = false;
           }
 
+          const userId = store.getters.userId;
+
           async function addTask(newTask) {
+               const { sendRequest: sendAddTaskRequest } = useHttps(
+                    `https://to-do-app-6ec13.firebaseio.com/${userId}.json`,
+                    {
+                         method: 'POST',
+                         body: JSON.stringify({
+                              description: newTask
+                         })
+                    }
+               );
+
                isDialogOpen.value = false;
-               const userId = store.getters.userId;
 
-               const response = await fetch(`https://to-do-app-6ec13.firebaseio.com/${userId}.json`, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                         description: newTask
-                    })
-               });
-
-               const responseData = await response.json();
-
-               if(!response.ok) {
-                    const error = new Error(responseData.message);
-                    throw error;
+               const utilizeData = (responseData) => {
+                    return responseData.name;
                }
 
+               const taskId = await sendAddTaskRequest(utilizeData)
+
                tasks.value.push({
-                    id: responseData.name,
+                    id: taskId,
                     description: newTask,
                });
           }
@@ -92,35 +94,25 @@ export default {
                tasks.value.splice(index, 1);
           }
 
+          const { isLoading, errorMessage, sendRequest: sendTasksRequest, confirmError } = useHttps(
+               `https://to-do-app-6ec13.firebaseio.com/${userId}.json`,
+               null
+          );
+
           async function loadTask() {
-               isLoading.value = true;
-               try {
-                    const userId = store.getters.userId;
-                    const response = await fetch(`https://to-do-app-6ec13.firebaseio.com/${userId}.json`);
-
-                    const responseData = await response.json();
-
-                    if(!response.ok) {
-                         const error = new Error(responseData.message);
-                         throw error;
-                    }
-
+               const utilizeData = (responseData) => {
+                    const transformedTasks = [];
                     for(const key in responseData) {
                          const task = {
                               id: key,
                               description: responseData[key].description
                          }
-                         tasks.value.push(task);
+                         transformedTasks.push(task);
                     }
-               }
-               catch(error) {
-                    errorMessage.value = 'Failed to load tasks!';
-               }
-               isLoading.value = false;
-          }
+                    return transformedTasks;
+               };
 
-          function confirmError() {
-               errorMessage.value = '';
+               tasks.value = await sendTasksRequest(utilizeData, 'Failed to load your tasks.');
           }
 
           function logout() {

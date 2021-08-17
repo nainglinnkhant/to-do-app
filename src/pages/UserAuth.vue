@@ -36,7 +36,7 @@
                               v-model.trim="password"
                               @blur="setPasswordTouched"
                          />
-                         <p v-if="isPasswordInvalid">please enter a valid password (at least 5 characters).</p>
+                         <p v-if="isPasswordInvalid">please enter a valid password (at least 6 characters).</p>
                     </div>
 
                     <div class="actions">
